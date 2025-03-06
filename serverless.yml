@@ -1,0 +1,31 @@
+service: ${self:custom.base}-profesores-layer
+
+frameworkVersion: '3'
+
+custom:
+  stage: ${opt:stage, 'prod'}
+  base: ${self:custom.org}-${self:custom.app}
+  org: ${opt:org, "pipn"}
+  app: ${opt:app, "api"}
+  region: ${opt:region, "us-east-1"}
+  bucket: ${opt:bucket, ""}
+  name: profesores
+  accountId: ${AWS::AccountId}
+
+provider:
+  name: aws
+  runtime: python3.11
+  stage: ${self:custom.stage}
+
+layers:
+  preparacionLayer:
+    name: ${self:service}-${self:custom.stage}  
+    description: Librerías compartidas para el desarrollo
+    compatibleRuntimes:
+      - python3.11
+    path: aws-layer   # The folder that contains the code to publish
+    # allowedAccounts:   # (Optional - AWS Organizations) List of AWS Account IDs that have access to the layer
+    #   - '123456789012'
+
+# plugins:
+#   - serverless-python-requirements  # (Optional) Plugin to manage Python requirements with pip
