@@ -2,7 +2,9 @@ name: Deploy
 
 on:
   push:
-    branches: [ "production" ]
+    branches: 
+      - "development"
+      - "production"
 
 jobs:
   build-and-deploy:
@@ -11,7 +13,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
 
-      - name: Setup Node.jsx
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
@@ -19,7 +21,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'  # o la versión que necesites
+          python-version: '3.11'  
 
       - name: Install dependencies for Lambda Layer
         run: |
@@ -29,12 +31,36 @@ jobs:
       - name: Install Serverless CLI globally
         run: npm install -g serverless@3
 
+      - name: Determine environment
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
+            echo "stage=dev" >> $GITHUB_OUTPUT
+            echo "aws_key=${{ secrets.AWS_ACCESS_KEY_ID_SANDBOX }}" >> $GITHUB_OUTPUT
+            echo "aws_secret=${{ secrets.AWS_SECRET_ACCESS_KEY_SANDBOX }}" >> $GITHUB_OUTPUT
+            echo "key_name=AWS_ACCESS_KEY_ID_SANDBOX" >> $GITHUB_OUTPUT
+            echo "secret_name=AWS_SECRET_ACCESS_KEY_SANDBOX" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
+            echo "stage=prod" >> $GITHUB_OUTPUT
+            echo "aws_key=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_OUTPUT
+            echo "aws_secret=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_OUTPUT
+            echo "key_name=AWS_ACCESS_KEY_ID" >> $GITHUB_OUTPUT
+            echo "secret_name=AWS_SECRET_ACCESS_KEY" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Debug Environment Variables
+        run: |
+          echo "Branch: ${{ github.ref }}"
+          echo "Stage: ${{ steps.env.outputs.stage }}"
+          echo "Using AWS key: ${{ steps.env.outputs.key_name }}"
+          echo "Using AWS secret: ${{ steps.env.outputs.secret_name }}"
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ steps.env.outputs.aws_key }}
+          aws-secret-access-key: ${{ steps.env.outputs.aws_secret }}
           aws-region: us-east-1
 
       - name: Deploy with Serverless
-        run: serverless deploy --stage prod
+        run: serverless deploy --stage ${{ steps.env.outputs.stage }}
