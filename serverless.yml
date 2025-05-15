@@ -5,7 +5,7 @@ frameworkVersion: '3'
 custom:
   stage: ${opt:stage, 'prod'}
   base: ${self:custom.org}-${self:custom.app}
-  org: ${opt:org, "pipn"}
+  org: ${opt:org, "mp"}
   app: ${opt:app, "api"}
   region: ${opt:region, "us-east-1"}
   bucket: ${opt:bucket, ""}
