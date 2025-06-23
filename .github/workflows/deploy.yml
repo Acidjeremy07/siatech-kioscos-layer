@@ -17,17 +17,6 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'  
-
-      - name: Install dependencies for Lambda Layer
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt -t ./aws-layer/python
-
       - name: Install Serverless CLI globally
         run: npm install -g serverless@3
 
