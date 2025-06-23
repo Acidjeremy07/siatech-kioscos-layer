@@ -1,31 +1,37 @@
-service: ${self:custom.base}-profesores-layer
+# serverless.yml  ── capa Node 18 ─────────────────────────────────────────────
+service: ${self:custom.base}-layer            # ej. mp-api-layer
 
 frameworkVersion: '3'
 
 custom:
-  stage: ${opt:stage, 'prod'}
-  base: ${self:custom.org}-${self:custom.app}
-  org: ${opt:org, "mp"}
-  app: ${opt:app, "api"}
-  region: ${opt:region, "us-east-1"}
-  bucket: ${opt:bucket, ""}
-  name: profesores
-  accountId: ${AWS::AccountId}
+  # ---------- parámetros genéricos ----------
+  org:   ${opt:org,   'mp'}                   # organización
+  app:   ${opt:app,   'api'}                  # aplicación
+  stage: ${opt:stage, 'prod'}                 # dev | prod
+  region:${opt:region,'us-east-1'}          # región AWS
+
+  base:  ${self:custom.org}-${self:custom.app}  # mp-api
 
 provider:
   name: aws
-  runtime: python3.11
-  stage: ${self:custom.stage}
+  runtime: nodejs18.x
+  region: ${self:custom.region}
+  stage:  ${self:custom.stage}
 
 layers:
-  preparacionLayer:
-    name: ${self:service}-${self:custom.stage}  
-    description: Librerías compartidas para el desarrollo
+  nodeModules:
+    # Nombre visible en la consola:
+    name: ${self:service}-${self:custom.stage}   # mp-api-layer-dev
+    description: Dependencias Node.js compartidas
     compatibleRuntimes:
-      - python3.11
-    path: aws-layer   # The folder that contains the code to publish
-    # allowedAccounts:   # (Optional - AWS Organizations) List of AWS Account IDs that have access to the layer
-    #   - '123456789012'
+      - nodejs18.x
+    path: aws-layer/nodejs    # aquí vive el node_modules
+  
+outputs:
+  NodeModulesLambdaLayerQualifiedArn:
+    description: ARN completo de la capa Node 18 con dependencias
+    value:
+      Ref: NodeModulesLambdaLayer
+    export:
+      Name: ${self:service}-${self:custom.stage}-NodeModulesLambdaLayerQualifiedArn
 
-# plugins:
-#   - serverless-python-requirements  # (Optional) Plugin to manage Python requirements with pip
