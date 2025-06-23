@@ -1,16 +1,15 @@
 # serverless.yml  ── capa Node 18 ─────────────────────────────────────────────
-service: ${self:custom.base}-layer            # ej. mp-api-layer
+service: ${self:custom.base}-layer   # ej. mp-api-layer
 
 frameworkVersion: '3'
 
 custom:
-  # ---------- parámetros genéricos ----------
-  org:   ${opt:org,   'mp'}                   # organización
-  app:   ${opt:app,   'api'}                  # aplicación
-  stage: ${opt:stage, 'prod'}                 # dev | prod
-  region:${opt:region,'us-east-1'}          # región AWS
+  org:   ${opt:org, 'mp'}            # organización
+  app:   ${opt:app, 'api'}           # aplicación
+  stage: ${opt:stage, 'prod'}        # dev | prod
+  region: ${opt:region, 'us-east-2'} # ← Ohio
+  base:  ${self:custom.org}-${self:custom.app}
 
-  base:  ${self:custom.org}-${self:custom.app}  # mp-api
 
 provider:
   name: aws
@@ -20,12 +19,11 @@ provider:
 
 layers:
   nodeModules:
-    # Nombre visible en la consola:
-    name: ${self:service}-${self:custom.stage}   # mp-api-layer-dev
+    name: ${self:service}-${self:custom.stage}
     description: Dependencias Node.js compartidas
     compatibleRuntimes:
       - nodejs18.x
-    path: aws-layer/nodejs    # aquí vive el node_modules
+    path: aws-layer/nodejs
   
 outputs:
   NodeModulesLambdaLayerQualifiedArn:
