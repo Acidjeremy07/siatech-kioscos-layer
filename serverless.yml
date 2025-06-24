@@ -1,5 +1,6 @@
 # serverless.yml  ── capa Node 18 ─────────────────────────────────────────────
 service: ${self:custom.base}-layer   # ej. mp-api-layer
+#comentario
 
 frameworkVersion: '3'
 
