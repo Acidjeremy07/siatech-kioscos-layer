@@ -22,18 +22,16 @@ layers:
     path: python-layer
     compatibleRuntimes: [python3.11]
     description: "Python shared deps for kioscos"
-
-resources:
-  Resources:
-    DeploymentArtifactsBucket:
-      Type: AWS::S3::Bucket
-      DeletionPolicy: Retain
-      Properties:
-        BucketName: siatech-layer-artifacts-${self:provider.stage}
-        VersioningConfiguration: { Status: Enabled }
-        PublicAccessBlockConfiguration:
-          BlockPublicAcls:  true
-          BlockPublicPolicy: true
-          IgnorePublicAcls: true
-          RestrictPublicBuckets: true
+Resources:
+  DeploymentArtifactsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: siatech-layer-artifacts-${self:provider.stage}
+      VersioningConfiguration: { Status: Enabled }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls:  true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
 #new run
