@@ -1,32 +1,28 @@
 service: siatech-kioscos-layer
+frameworkVersion: '^3.40.0'
 
 provider:
   name: aws
-  runtime: nodejs18.x
   region: us-east-2
+  runtime: nodejs18.x
   stage: ${opt:stage, 'dev'}
-
-  # Bucket de despliegue estable
-  deploymentBucket:
-    name: siatech-layer-artifacts-${self:provider.stage}
-    serverSideEncryption: AES256
 
 layers:
   NodeModules:
-    path: node-layer
+    path: node-layer          # Serverless buscará node-layer/nodejs/**
     compatibleRuntimes: [nodejs18.x]
   PythonPackages:
-    path: python-layer
+    path: python-layer        # Serverless buscará python-layer/python/**
     compatibleRuntimes: [python3.11]
 
-# ── Recurso explícito para recrear el bucket si se borra ────────────
 resources:
   Resources:
     DeploymentArtifactsBucket:
       Type: AWS::S3::Bucket
-      DeletionPolicy: Retain            # nunca se destruye con el stack
+      DeletionPolicy: Retain
       Properties:
         BucketName: siatech-layer-artifacts-${self:provider.stage}
+
         VersioningConfiguration: { Status: Enabled }
         PublicAccessBlockConfiguration:
           BlockPublicAcls:  true
