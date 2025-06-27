@@ -1,56 +1,67 @@
-name: Deploy
-
+name: Deploy layer
 on:
   push:
-    branches: 
-      - "development"
-      - "production"
+    paths:
+      - "node-layer/**"
+      - "python-layer/**"
+      - "serverless.yml"
+      - ".github/workflows/deploy-layer.yml"
+    branches: [development, production]
+
+env:
+  BUCKET_NAME_DEV:  siatech-layer-artifacts-dev
+  BUCKET_NAME_PROD: siatech-layer-artifacts-prod
+  REGION: us-east-2
 
 jobs:
-  build-and-deploy:
+  deploy-layer:
     runs-on: ubuntu-latest
+    defaults: { run: { shell: bash } }
+
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-      - name: Install Serverless CLI globally
-        run: npm install -g serverless@3
+    - uses: actions/setup-node@v3
+      with: { node-version: 18 }
 
-      - name: Determine environment
-        id: env
-        run: |
-          if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
-            echo "stage=dev" >> $GITHUB_OUTPUT
-            echo "aws_key=${{ secrets.AWS_ACCESS_KEY_ID_SANDBOX }}" >> $GITHUB_OUTPUT
-            echo "aws_secret=${{ secrets.AWS_SECRET_ACCESS_KEY_SANDBOX }}" >> $GITHUB_OUTPUT
-            echo "key_name=AWS_ACCESS_KEY_ID_SANDBOX" >> $GITHUB_OUTPUT
-            echo "secret_name=AWS_SECRET_ACCESS_KEY_SANDBOX" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
-            echo "stage=prod" >> $GITHUB_OUTPUT
-            echo "aws_key=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_OUTPUT
-            echo "aws_secret=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_OUTPUT
-            echo "key_name=AWS_ACCESS_KEY_ID" >> $GITHUB_OUTPUT
-            echo "secret_name=AWS_SECRET_ACCESS_KEY" >> $GITHUB_OUTPUT
-          fi
+    # ▸ Serverless CLI
+    - run: npm install -g serverless@3
 
-      - name: Debug Environment Variables
-        run: |
-          echo "Branch: ${{ github.ref }}"
-          echo "Stage: ${{ steps.env.outputs.stage }}"
-          echo "Using AWS key: ${{ steps.env.outputs.key_name }}"
-          echo "Using AWS secret: ${{ steps.env.outputs.secret_name }}"
+    # ▸ Plugins (por si los usas)
+    - run: npm install -g serverless-bundle@^6 serverless-python-requirements@^6
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ steps.env.outputs.aws_key }}
-          aws-secret-access-key: ${{ steps.env.outputs.aws_secret }}
-          aws-region: us-east-1
+    # ▸ Stage / credenciales
+    - id: env
+      run: |
+        if [[ "$GITHUB_REF" == "refs/heads/development" ]]; then
+          echo "STAGE=dev" >> $GITHUB_ENV
+          echo "BUCKET=$BUCKET_NAME_DEV" >> $GITHUB_ENV
+          echo "aws_key=${{ secrets.AWS_ACCESS_KEY_ID_SANDBOX }}"        >> $GITHUB_ENV
+          echo "aws_secret=${{ secrets.AWS_SECRET_ACCESS_KEY_SANDBOX }}" >> $GITHUB_ENV
+        else
+          echo "STAGE=prod" >> $GITHUB_ENV
+          echo "BUCKET=$BUCKET_NAME_PROD" >> $GITHUB_ENV
+          echo "aws_key=${{ secrets.AWS_ACCESS_KEY_ID }}"                >> $GITHUB_ENV
+          echo "aws_secret=${{ secrets.AWS_SECRET_ACCESS_KEY }}"         >> $GITHUB_ENV
+        fi
 
-      - name: Deploy with Serverless
-        run: serverless deploy --stage ${{ steps.env.outputs.stage }}
-        
+    - uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id:     ${{ env.aws_key }}
+        aws-secret-access-key: ${{ env.aws_secret }}
+        aws-region: ${{ env.REGION }}
+
+    # ▸ Crear bucket si no existe (idempotente)
+    - name: Ensure deployment bucket exists
+      run: |
+        if aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
+          echo "Bucket $BUCKET ya existe."
+        else
+          echo "Creando bucket $BUCKET ..."
+          aws s3api create-bucket --bucket "$BUCKET" --region $REGION --create-bucket-configuration LocationConstraint=$REGION
+          aws s3api put-bucket-encryption --bucket "$BUCKET" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+        fi
+
+    # ▸ Deploy
+    - run: |
+        serverless deploy --stage $STAGE --region $REGION --verbose

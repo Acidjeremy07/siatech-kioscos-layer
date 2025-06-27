@@ -1,36 +1,35 @@
-# serverless.yml  ── capa Node 18 ─────────────────────────────────────────────
-service: ${self:custom.base}-layer   # ej. mp-api-layer
-#comentario
-
-frameworkVersion: '3'
-
-custom:
-  org:   ${opt:org, 'mp'}            # organización
-  app:   ${opt:app, 'api'}           # aplicación
-  stage: ${opt:stage, 'prod'}        # dev | prod
-  region: ${opt:region, 'us-east-2'} # ← Ohio
-  base:  ${self:custom.org}-${self:custom.app}
-
+service: siatech-kioscos-layer
 
 provider:
   name: aws
   runtime: nodejs18.x
-  region: ${self:custom.region}
-  stage:  ${self:custom.stage}
+  region: us-east-2
+  stage: ${opt:stage, 'dev'}
+
+  # Bucket de despliegue estable
+  deploymentBucket:
+    name: siatech-layer-artifacts-${self:provider.stage}
+    serverSideEncryption: AES256
 
 layers:
-  nodeModules:
-    name: ${self:service}-${self:custom.stage}
-    description: Dependencias Node.js compartidas
-    compatibleRuntimes:
-      - nodejs18.x
-    path: aws-layer/nodejs
-  
-outputs:
-  NodeModulesLambdaLayerQualifiedArn:
-    description: ARN completo de la capa Node 18 con dependencias
-    value:
-      Ref: NodeModulesLambdaLayer
-    export:
-      Name: ${self:service}-${self:custom.stage}-NodeModulesLambdaLayerQualifiedArn
+  NodeModules:
+    path: node-layer
+    compatibleRuntimes: [nodejs18.x]
+  PythonPackages:
+    path: python-layer
+    compatibleRuntimes: [python3.11]
 
+# ── Recurso explícito para recrear el bucket si se borra ────────────
+resources:
+  Resources:
+    DeploymentArtifactsBucket:
+      Type: AWS::S3::Bucket
+      DeletionPolicy: Retain            # nunca se destruye con el stack
+      Properties:
+        BucketName: siatech-layer-artifacts-${self:provider.stage}
+        VersioningConfiguration: { Status: Enabled }
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls:  true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
