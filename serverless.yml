@@ -3,17 +3,24 @@ frameworkVersion: '^3.40.0'
 
 provider:
   name: aws
+  runtime: nodejs18.x         # solo referencia; la capa vale para varios
   region: us-east-2
-  runtime: nodejs18.x
   stage: ${opt:stage, 'dev'}
+
+  # Bucket estable (se crea si no existe) donde Serverless sube el .zip
+  deploymentBucket:
+    name: siatech-layer-artifacts-${self:provider.stage}
+    serverSideEncryption: AES256
 
 layers:
   NodeModules:
-    path: node-layer          # Serverless buscará node-layer/nodejs/**
+    path: node-layer               # ↳ Serverless ZIPea todo esto
     compatibleRuntimes: [nodejs18.x]
+    description: "Node.js shared deps for kioscos"
   PythonPackages:
-    path: python-layer        # Serverless buscará python-layer/python/**
+    path: python-layer
     compatibleRuntimes: [python3.11]
+    description: "Python shared deps for kioscos"
 
 resources:
   Resources:
@@ -22,7 +29,6 @@ resources:
       DeletionPolicy: Retain
       Properties:
         BucketName: siatech-layer-artifacts-${self:provider.stage}
-
         VersioningConfiguration: { Status: Enabled }
         PublicAccessBlockConfiguration:
           BlockPublicAcls:  true
