@@ -1,0 +1,95 @@
+name: Deploy layer
+on:
+  push:
+    branches: [development, production]
+
+env:
+  REGION: us-east-2
+  BUCKET_DEV:  siatech-layer-artifacts-dev
+  BUCKET_PROD: siatech-layer-artifacts-prod
+
+jobs:
+  deploy-layer:
+    runs-on: ubuntu-latest
+    defaults: { run: { shell: bash } }
+
+    steps:
+    # ───────────────────────────────────────────────────────────────
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-node@v3
+      with: { node-version: 18 }
+
+    - uses: actions/setup-python@v5
+      with: { python-version: '3.11' }
+
+    # Serverless CLI + plugins
+    - run: |
+          npm install -g serverless@3
+          npm install -g serverless-python-requirements@6
+
+    # Determinar stage, credenciales y bucket
+    - id: env
+      run: |
+        if [[ "$GITHUB_REF" == "refs/heads/development" ]]; then
+          echo "STAGE=dev"            >> $GITHUB_ENV
+          echo "BUCKET=$BUCKET_DEV"   >> $GITHUB_ENV
+          echo "aws_key=${{ secrets.AWS_ACCESS_KEY_ID_SANDBOX }}"        >> $GITHUB_ENV
+          echo "aws_secret=${{ secrets.AWS_SECRET_ACCESS_KEY_SANDBOX }}" >> $GITHUB_ENV
+        else
+          echo "STAGE=prod"           >> $GITHUB_ENV
+          echo "BUCKET=$BUCKET_PROD"  >> $GITHUB_ENV
+          echo "aws_key=${{ secrets.AWS_ACCESS_KEY_ID }}"                >> $GITHUB_ENV
+          echo "aws_secret=${{ secrets.AWS_SECRET_ACCESS_KEY }}"         >> $GITHUB_ENV
+        fi
+
+    - uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id:     ${{ env.aws_key }}
+        aws-secret-access-key: ${{ env.aws_secret }}
+        aws-region: ${{ env.REGION }}
+
+    # ── 1. Construir carpeta Node layer ────────────────────────────
+    - name: Build Node layer
+      run: |
+        rm -rf node-layer
+        mkdir -p node-layer/nodejs
+        # Instala dependencias definidas en package.json de la raíz:
+        if [ -f package.json ]; then
+          npm ci --omit=dev
+          mv node_modules node-layer/nodejs/
+          # Copia un package.json placeholder para que Serverless lo vea
+          jq '{ dependencies: .dependencies }' package.json > node-layer/package.json
+        else
+          # Placeholder vacío si aún no tienes dependencias
+          echo '{ "name":"placeholder", "version":"1.0.0" }' > node-layer/package.json
+        fi
+
+    # ── 2. Construir carpeta Python layer ─────────────────────────
+    - name: Build Python layer
+      run: |
+        rm -rf python-layer
+        mkdir -p python-layer/python
+        if [ -f requirements.txt ]; then
+          pip install -r requirements.txt -t python-layer/python
+        else
+          # Crea un archivo dummy para que no quede vacío
+          echo "# placeholder" > python-layer/python/.keep
+        fi
+
+    # ── 3. Garantizar bucket S3 (idempotente) ─────────────────────
+    - name: Ensure deployment bucket
+      run: |
+        if aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
+          echo "Bucket $BUCKET ya existe."
+        else
+          echo "Creando bucket $BUCKET ..."
+          aws s3api create-bucket --bucket "$BUCKET" --region $REGION \
+            --create-bucket-configuration LocationConstraint=$REGION
+          aws s3api put-bucket-encryption --bucket "$BUCKET" \
+            --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+        fi
+
+    # ── 4. Deploy ─────────────────────────────────────────────────
+    - run: |
+        serverless deploy --stage $STAGE --region $REGION --verbose

@@ -1,37 +1,24 @@
-# serverless.yml  ── capa Node 18 ─────────────────────────────────────────────
-service: ${self:custom.base}-layer            # ej. mp-api-layer
-
-frameworkVersion: '3'
-
-custom:
-  # ---------- parámetros genéricos ----------
-  org:   ${opt:org,   'mp'}                   # organización
-  app:   ${opt:app,   'api'}                  # aplicación
-  stage: ${opt:stage, 'prod'}                 # dev | prod
-  region:${opt:region,'us-east-1'}          # región AWS
-
-  base:  ${self:custom.org}-${self:custom.app}  # mp-api
+service: siatech-kioscos-layer
+frameworkVersion: '^3.40.0'
 
 provider:
   name: aws
+  region: us-east-2
   runtime: nodejs18.x
-  region: ${self:custom.region}
-  stage:  ${self:custom.stage}
+  stage: ${opt:stage, 'dev'}
+
+  deploymentBucket:
+    name: siatech-layer-artifacts-${self:provider.stage}
+    serverSideEncryption: AES256
+    skipPolicySetup: true        # Serverless solo lo usa
 
 layers:
-  nodeModules:
-    # Nombre visible en la consola:
-    name: ${self:service}-${self:custom.stage}   # mp-api-layer-dev
-    description: Dependencias Node.js compartidas
-    compatibleRuntimes:
-      - nodejs18.x
-    path: aws-layer/nodejs    # aquí vive el node_modules
-  
-outputs:
-  NodeModulesLambdaLayerQualifiedArn:
-    description: ARN completo de la capa Node 18 con dependencias
-    value:
-      Ref: NodeModulesLambdaLayer
-    export:
-      Name: ${self:service}-${self:custom.stage}-NodeModulesLambdaLayerQualifiedArn
+  NodeModules:
+    path: node-layer
+    compatibleRuntimes: [nodejs18.x]
+    description: "Node.js shared deps for kioscos"
 
+  PythonPackages:
+    path: python-layer
+    compatibleRuntimes: [python3.11]
+    description: "Python shared deps for kioscos"
