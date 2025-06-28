@@ -25,8 +25,8 @@ jobs:
 
     # Serverless CLI + plugins
     - run: |
-        npm install -g serverless@3
-                       serverless-python-requirements@^6
+          npm install -g serverless@3
+          npm install -g serverless-python-requirements@6
 
     # Determinar stage, credenciales y bucket
     - id: env
