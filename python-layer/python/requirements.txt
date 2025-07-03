@@ -1,5 +1,5 @@
 #Liberia para lambda de hola
 python-dateutil==2.9.0.post0
 
-#Libreria para lambda de get_terminals
+#Libreria para lambda de get_terminals auto deploy try
 requests==2.31.0
