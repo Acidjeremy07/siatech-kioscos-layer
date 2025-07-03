@@ -69,13 +69,14 @@ jobs:
     - name: Build Python layer
       run: |
         rm -rf python-layer
-        mkdir -p python-layer/python
+        mkdir -p python-layer/python/lib/python3.11/site-packages
         if [ -f requirements.txt ]; then
-          pip install -r requirements.txt -t python-layer/python
-        else
-          # Crea un archivo dummy para que no quede vacío
-          echo "# placeholder" > python-layer/python/.keep
+          pip install --platform manylinux2014_x86_64 \
+                      --target python-layer/python/lib/python3.11/site-packages \
+                      --implementation cp --python-version 3.11 \
+                      --only-binary=:all: --upgrade -r requirements.txt
         fi
+
 
     # ── 3. Garantizar bucket S3 (idempotente) ─────────────────────
     - name: Ensure deployment bucket
