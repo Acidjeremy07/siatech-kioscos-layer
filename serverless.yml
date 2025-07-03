@@ -10,7 +10,7 @@ provider:
   deploymentBucket:
     name: siatech-layer-artifacts-${self:provider.stage}
     serverSideEncryption: AES256
-    skipPolicySetup: true        # Serverless solo lo usa
+    skipPolicySetup: true     
 
 layers:
   NodeModules:
